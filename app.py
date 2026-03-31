@@ -3,130 +3,141 @@ import google.generativeai as genai
 from google.api_core.exceptions import ResourceExhausted
 
 # --- 1. SETUP & CONFIGURATION ---
-st.set_page_config(page_title="AP Lit Poetry Deconstructor", page_icon="✒️", layout="wide")
+st.set_page_config(page_title="AP Lit Poetry Workshop", page_icon="🏛️", layout="wide")
 genai.configure(api_key=st.secrets["API_KEY"])
 
-# --- 2. SIDEBAR UI (AP Focus Areas) ---
+# --- 2. SIDEBAR: AP EXAM FOCUS ---
 with st.sidebar:
-    st.title("✒️ AP Analysis Panel")
-    st.write("Select a specific AP Literature skill to focus on during your deconstruction.")
+    st.title("🏛️ AP FRQ 1: Poetry")
+    st.write("Select a targeted AP skill for this session:")
     
-    focus_area = st.selectbox(
-        "Analytical Focus:",
+    ap_mode = st.selectbox(
+        "Workshop Mode:",
         [
-            "General AP Analysis (All Elements)",
-            "Structure, Form & Syntax (Volta, Enjambment, Meter)",
-            "Figurative Language (Conceit, Metonymy, Synecdoche)",
-            "Tone, Mood & Shifts",
-            "Diction & Imagery"
+            "Line-by-Line Explication (General)",
+            "Row A: Thesis Workshop",
+            "Row B: Evidence & Commentary (The 'How')",
+            "Row C: Complexity & Shifts (The Volta)"
         ]
     )
     
     st.markdown("---")
-    st.subheader("AP Lit Golden Rule:")
-    st.write("*Always connect the literary device to the meaning of the work as a whole.*")
-    
+    with st.expander("📝 AP Rubric Reminders"):
+        st.write("**Row A (1 pt):** Must establish a defensible thesis analyzing how the poet uses literary elements to convey meaning.")
+        st.write("**Row B (4 pts):** Must provide specific evidence and explain *how* that evidence conveys the meaning.")
+        st.write("**Row C (1 pt):** Must demonstrate a complex understanding (e.g., exploring tensions, shifts, or broader contexts).")
+        
     st.markdown("---")
     if st.button("Start Over / New Poem"):
-        st.session_state.chat_history = []
-        st.session_state.chat_session = None
-        st.session_state.poem_loaded = False
+        st.session_state.clear()
         st.rerun()
 
-# --- 3. MAIN LAYOUT & AI INITIALIZATION ---
-st.title("✒️ The AP Lit Poetry Deconstructor")
+# --- 3. THE "PROFESSOR" SYSTEM PROMPT ---
+ap_professor_prompt = f"""
+You are a distinguished, veteran AP English Literature Exam Reader and a passionate literature professor. 
+You are mentoring a high school student through a poem. Your tone should be academic, deeply insightful, Socratic, and encouraging. Never be condescending.
 
-# The rigorous AP Literature System Prompt
-ap_system_prompt = f"""
-You are an expert, rigorous AP English Literature teacher guiding a student through a poem.
-The student has selected the following focus area: {focus_area}.
+The student has selected the following workshop mode: {ap_mode}.
 
 CRITICAL RULES:
-1. Do NOT write the analysis for them. Do not give away the theme or write an essay.
-2. Focus strictly on AP-level analysis. Use elevated terminology (e.g., volta, conceit, enjambment, metonymy, juxtaposition, syntax).
-3. Quote ONE specific line or stanza, identify a device or structural element relevant to the {focus_area}, and ask a probing, Socratic question about its function and effect.
-4. Push the student to connect the specific authorial choice to the "meaning of the work as a whole."
-5. Validate their responses, gently correct superficial readings or misinterpretations, and push them deeper. Keep the tone academic, encouraging, and rigorous.
+1. NEVER do the work for the student. Do not write the thesis, do not give away the theme, and do not write an essay paragraph.
+2. Use elevated AP-level vocabulary (e.g., conceit, enjambment, metonymy, juxtaposition, syntax, volta, tension).
+3. Always push the student to connect their specific observations to the "Meaning of the Work as a Whole" (MOWAW). 
+4. If the mode is "Thesis Workshop", aggressively test their thesis for defensibility and complexity.
+5. If the mode is "Complexity & Shifts", focus entirely on tensions, paradoxes, and the volta.
+6. Keep your responses concise (1-2 short paragraphs max) ending with a highly targeted analytical question.
 """
 
-generation_config = genai.types.GenerationConfig(
-    temperature=0.3, # Slightly higher than 1984 to allow for poetic interpretation, but low enough to stay focused.
-)
-
+generation_config = genai.types.GenerationConfig(temperature=0.3)
 model = genai.GenerativeModel(
     model_name='gemini-2.5-flash',
-    system_instruction=ap_system_prompt,
+    system_instruction=ap_professor_prompt,
     generation_config=generation_config
 )
 
 # --- 4. SESSION MANAGEMENT ---
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
-if "poem_loaded" not in st.session_state:
-    st.session_state.poem_loaded = False
-if "current_focus" not in st.session_state or st.session_state.current_focus != focus_area:
-    # If they change the focus area, we need to restart the chat session to apply the new prompt
-    st.session_state.current_focus = focus_area
-    if st.session_state.poem_loaded:
-        st.session_state.chat_session = model.start_chat(history=[])
+if "poem_text" not in st.session_state:
+    st.session_state.poem_text = ""
+if "workshop_active" not in st.session_state:
+    st.session_state.workshop_active = False
 
-if "chat_session" not in st.session_state or st.session_state.chat_session is None:
+# Ensure chat session matches the selected mode
+if "current_mode" not in st.session_state or st.session_state.current_mode != ap_mode:
+    st.session_state.current_mode = ap_mode
+    if st.session_state.workshop_active:
+        st.session_state.chat_session = model.start_chat(history=[])
+        # Kick off the new mode
+        try:
+            prompt = f"We are now focusing on {ap_mode} for the poem provided. Give me a brief, one-sentence welcoming thought and ask your first specific question."
+            response = st.session_state.chat_session.send_message(prompt)
+            st.session_state.chat_history.append({"role": "assistant", "content": response.text})
+        except Exception:
+            pass
+
+if "chat_session" not in st.session_state:
     st.session_state.chat_session = model.start_chat(history=[])
 
-# --- 5. STEP ONE: POEM INPUT ---
-if not st.session_state.poem_loaded:
-    st.write("Paste a poem below. I will help you analyze its complex elements and prepare for the AP Exam.")
-    poem_text = st.text_area("Poem Text:", height=300)
+# --- 5. UI: POEM INPUT SCREEN ---
+if not st.session_state.workshop_active:
+    st.title("🏛️ The AP Literature Poetry Workshop")
+    st.write("Welcome, scholar. Paste your text below to begin our explication.")
     
-    if st.button("Begin AP Deconstruction"):
-        if poem_text.strip():
-            st.session_state.poem_loaded = True
+    raw_poem = st.text_area("Paste the poem here:", height=300)
+    
+    if st.button("Begin Analysis"):
+        if raw_poem.strip():
+            st.session_state.poem_text = raw_poem
+            st.session_state.workshop_active = True
             
-            # Lock in the poem and send the initial hidden prompt to the AI
             try:
-                initial_prompt = f"Here is the poem we are analyzing:\n\n{poem_text}\n\nPlease start the analysis by pointing out one specific element related to our focus ({focus_area}) and asking a high-level AP question about its effect."
+                initial_prompt = f"Here is the poem we are analyzing:\n\n{raw_poem}\n\nPlease welcome the student to the {ap_mode} workshop, point out one specific element, and ask a high-level AP question to begin."
                 response = st.session_state.chat_session.send_message(initial_prompt)
                 st.session_state.chat_history.append({"role": "assistant", "content": response.text})
                 st.rerun() 
-            except Exception as e:
+            except Exception:
                 st.error("Error loading poem. Please try again.")
         else:
             st.warning("Please paste a poem first!")
 
-# --- 6. STEP TWO: CHAT INTERFACE ---
-if st.session_state.poem_loaded:
-    st.markdown("---")
+# --- 6. UI: SPLIT-SCREEN WORKSHOP ---
+if st.session_state.workshop_active:
+    # Create two columns: Left for the poem, Right for the chat
+    col1, col2 = st.columns([1, 1.2], gap="large")
     
-    # Display Chat History
-    for message in st.session_state.chat_history:
-        with st.chat_message(message["role"]):
-            st.markdown(message["content"])
-
-    # Chat Input
-    user_input = st.chat_input("Type your AP-level analysis here...")
-    
-    if user_input:
-        st.chat_message("user").markdown(user_input)
-        st.session_state.chat_history.append({"role": "user", "content": user_input})
+    with col1:
+        st.subheader("📜 The Text")
+        # Display the poem in a nice, clean markdown box
+        st.info(st.session_state.poem_text)
         
-        try:
-            response = st.session_state.chat_session.send_message(user_input)
+    with col2:
+        st.subheader(f"🗣️ Discussion: {ap_mode}")
+        
+        # Display Chat History
+        for message in st.session_state.chat_history:
+            with st.chat_message(message["role"]):
+                st.markdown(message["content"])
+
+        # Chat Input
+        user_input = st.chat_input("Enter your analysis...")
+        
+        if user_input:
+            st.chat_message("user").markdown(user_input)
+            st.session_state.chat_history.append({"role": "user", "content": user_input})
             
-            with st.chat_message("assistant"):
-                st.markdown(response.text)
-            st.session_state.chat_history.append({"role": "assistant", "content": response.text})
-            
-        except ResourceExhausted:
-            st.error("🚨 **Traffic Jam.** \n\nThe API is currently overloaded. Please wait 60 seconds and try again.")
-            if st.session_state.chat_history:
-                st.session_state.chat_history.pop()
+            try:
+                response = st.session_state.chat_session.send_message(user_input)
+                with st.chat_message("assistant"):
+                    st.markdown(response.text)
+                st.session_state.chat_history.append({"role": "assistant", "content": response.text})
                 
-        except ValueError:
-            st.error("🚨 **Content Filtered.** \n\nThe AI's safety filters blocked this response. Try rephrasing your analysis.")
-            if st.session_state.chat_history:
-                st.session_state.chat_history.pop()
-                
-        except Exception as e:
-            st.error("An unexpected error occurred. Please refresh the page and try again.")
-            if st.session_state.chat_history:
-                st.session_state.chat_history.pop()
+            except ResourceExhausted:
+                st.error("🚨 **Network Overload.** The College Board servers are busy. Please wait 60 seconds and try again.")
+                if st.session_state.chat_history:
+                    st.session_state.chat_history.pop()
+                    
+            except Exception as e:
+                st.error("An unexpected error occurred. Please refresh the page and try again.")
+                if st.session_state.chat_history:
+                    st.session_state.chat_history.pop()
