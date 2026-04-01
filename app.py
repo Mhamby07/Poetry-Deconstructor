@@ -1,156 +1,128 @@
 import streamlit as st
 import google.generativeai as genai
 from google.api_core.exceptions import ResourceExhausted
+import os # NEW: This allows us to check for local image files
 
 # --- 1. SETUP & CONFIGURATION ---
-st.set_page_config(page_title="AP Lit Poetry Workshop", page_icon="🏛️", layout="wide")
+st.set_page_config(page_title="1984 Character Chat", page_icon="👁️", layout="wide")
 genai.configure(api_key=st.secrets["API_KEY"])
 
-# --- 2. SIDEBAR: AP EXAM FOCUS & LITERARY DEVICES ---
+# --- 2. CHARACTER DATABASE (UPDATED) ---
+# We have added an 'image_file' key to each character's entry.
+CHARACTERS = {
+    "Winston Smith": {
+        "bio": "A minor member of the ruling Party in near-future London. He is a thoughtful, fatalistic, and secretly rebellious man who hates the totalitarian control of his government.",
+        "prompt_addition": "You are fatalistic, paranoid, and reflective. You secretly hate Big Brother and are terrified of the Thought Police.",
+        "image_file": "winston_smith.png" # NEW
+    },
+    "Julia": {
+        "bio": "A pragmatic and rebellious young woman who works in the Fiction Department. She enjoys breaking the rules for her own pleasure rather than for ideological reasons.",
+        "prompt_addition": "You are pragmatic, sensual, and cynical about the Party. You just want to break the rules to enjoy your own life. You find abstract political theories boring.",
+        "image_file": "julia.png" # NEW
+    },
+    "O'Brien": {
+        "bio": "A mysterious, powerful member of the Inner Party. Winston believes he is part of a secret resistance, but his true loyalties are much darker.",
+        "prompt_addition": "You are highly intelligent, intimidatingly calm, and deeply loyal to the Inner Party. You believe power is an end in itself. You speak with absolute authority.",
+        "image_file": "obrien.png" # NEW
+    },
+    "Syme": {
+        "bio": "An intelligent man who works with Winston at the Ministry of Truth. He specializes in language and is helping compile the latest edition of the Newspeak dictionary.",
+        "prompt_addition": "You are enthusiastically obsessed with the destruction of words. You speak passionately about Newspeak and the beauty of narrowing the range of human thought.",
+        "image_file": "syme.png" # NEW
+    },
+    "Parsons": {
+        "bio": "Winston's neighbor. A sweaty, obnoxious, and dull Party member who is completely unquestioning and immensely proud of his fiercely orthodox children.",
+        "prompt_addition": "You are excessively enthusiastic and completely unthinking. You swallow every piece of Party propaganda without question. You are immensely proud of your junior spy children.",
+        "image_file": "parsons.png" # NEW
+    }
+}
+
+# --- 3. SIDEBAR UI (UPDATED WITH IMAGES) ---
 with st.sidebar:
-    st.title("🏛️ AP FRQ 1: Poetry")
-    
-    st.subheader("1. Select Workshop Mode")
-    ap_mode = st.selectbox(
-        "Workshop Mode:",
-        [
-            "Line-by-Line Explication",
-            "Row A: Thesis Workshop",
-            "Row B: Evidence & Commentary",
-            "Row C: Complexity & Shifts"
-        ]
-    )
+    st.title("👁️ Control Panel")
+    selected_name = st.selectbox("Select a Citizen:", list(CHARACTERS.keys()))
     
     st.markdown("---")
-    st.subheader("2. Literary Device Focus")
-    st.write("Target a specific element to see how it builds meaning.")
-    device_focus = st.selectbox(
-        "Select a Device:",
-        [
-            "Open Analysis (All Devices)",
-            "Imagery & Sensory Details",
-            "Metaphor, Simile & Conceit",
-            "Enjambment & Syntax",
-            "Tone & Diction",
-            "Structure & Form (Volta, Meter)",
-            "Metonymy & Synecdoche"
-        ]
-    )
+    st.subheader(f"About {selected_name}")
+    
+    # NEW: The app tries to find and display the correct image file.
+    # The image must exist in your GitHub repository for this to work.
+    if os.path.exists(CHARACTERS[selected_name]["image_file"]):
+        st.image(CHARACTERS[selected_name]["image_file"], caption=selected_name, use_column_width=True)
+    else:
+        st.warning(f"Note: Upload '{CHARACTERS[selected_name]['image_file']}' to your GitHub to see the portrait.")
+
+    st.write(CHARACTERS[selected_name]["bio"])
     
     st.markdown("---")
-    with st.expander("📝 AP Rubric Reminders"):
-        st.write("**Row A (1 pt):** Must establish a defensible thesis analyzing how the poet uses literary elements to convey meaning.")
-        st.write("**Row B (4 pts):** Must provide specific evidence and explain *how* that evidence conveys the meaning.")
-        st.write("**Row C (1 pt):** Must demonstrate a complex understanding (e.g., exploring tensions, shifts, or broader contexts).")
-        
-    st.markdown("---")
-    if st.button("Start Over / New Poem"):
-        st.session_state.clear()
+    if st.button("Start New Conversation"):
+        st.session_state.chat_history = []
+        st.session_state.chat_session = None
         st.rerun()
 
-# --- 3. THE "PROFESSOR" SYSTEM PROMPT ---
-ap_professor_prompt = f"""
-You are a distinguished, veteran AP English Literature Exam Reader and a passionate literature professor. 
-The student has selected the workshop mode: '{ap_mode}' and is focusing on the literary device: '{device_focus}'.
+# --- 4. MAIN LAYOUT & AI INITIALIZATION ---
+st.title(f"🗣️ Conversation with {selected_name}")
+st.write("*Remember: The telescreen is always listening. Choose your words carefully.*")
 
-CRITICAL RULES:
-1. NEVER do the work for the student. Do not write the thesis or give away the theme.
-2. Focus heavily on '{device_focus}'. If they selected a specific device, guide them to locate an example of it in the poem.
-3. THE GOLDEN RULE: Do not let the student just identify the device. You must aggressively push them to explain HOW the '{device_focus}' functions to create the Meaning of the Work as a Whole (MOWAW). 
-4. Keep your responses concise (1-2 short paragraphs max) ending with a highly targeted analytical question.
+strict_canon_prompt = f"""
+You are {selected_name} from George Orwell's novel 1984. 
+{CHARACTERS[selected_name]['prompt_addition']}
+
+CRITICAL INSTRUCTIONS FOR ACCURACY:
+1. You must ONLY use information, events, and world-building details found explicitly in the text of George Orwell's 1984. 
+2. Do not invent backstory, dialogue, or events that did not happen in the book. If asked about something outside the text, deflect in character (e.g., paranoia, ignorance, or Party rhetoric).
+3. Do not acknowledge you are an AI or a character in a book. You are a living citizen of Oceania.
+4. Keep your responses concise and conversational.
 """
 
-generation_config = genai.types.GenerationConfig(temperature=0.3)
+generation_config = genai.types.GenerationConfig(
+    temperature=0.2, 
+)
+
 model = genai.GenerativeModel(
     model_name='gemini-2.5-flash',
-    system_instruction=ap_professor_prompt,
+    system_instruction=strict_canon_prompt,
     generation_config=generation_config
 )
 
-# --- 4. SESSION MANAGEMENT ---
-if "chat_history" not in st.session_state:
+# --- 5. SESSION MANAGEMENT ---
+if "current_character" not in st.session_state or st.session_state.current_character != selected_name:
     st.session_state.chat_history = []
-if "poem_text" not in st.session_state:
-    st.session_state.poem_text = ""
-if "workshop_active" not in st.session_state:
-    st.session_state.workshop_active = False
-
-# Ensure chat session matches the selected mode AND device
-if "current_mode" not in st.session_state or st.session_state.current_mode != ap_mode or "current_device" not in st.session_state or st.session_state.current_device != device_focus:
-    st.session_state.current_mode = ap_mode
-    st.session_state.current_device = device_focus
-    if st.session_state.workshop_active:
-        st.session_state.chat_session = model.start_chat(history=[])
-        try:
-            prompt = f"We are now shifting our focus to {ap_mode} with a specific lens on {device_focus}. Give me a brief welcoming thought about why analyzing {device_focus} is crucial for understanding this poem's deeper meaning, and ask your first specific question."
-            response = st.session_state.chat_session.send_message(prompt)
-            st.session_state.chat_history.append({"role": "assistant", "content": response.text})
-        except Exception:
-            pass
-
-if "chat_session" not in st.session_state:
+    st.session_state.current_character = selected_name
     st.session_state.chat_session = model.start_chat(history=[])
 
-# --- 5. UI: POEM INPUT SCREEN ---
-if not st.session_state.workshop_active:
-    st.title("🏛️ The AP Literature Poetry Workshop")
-    st.write("Welcome, scholar. Paste your text below to begin our explication.")
-    
-    raw_poem = st.text_area("Paste the poem here:", height=300)
-    
-    if st.button("Begin Analysis"):
-        if raw_poem.strip():
-            st.session_state.poem_text = raw_poem
-            st.session_state.workshop_active = True
-            
-            try:
-                initial_prompt = f"Here is the poem we are analyzing:\n\n{raw_poem}\n\nPlease welcome the student. Focus on {device_focus} in the context of {ap_mode}. Ask a high-level AP question to begin."
-                response = st.session_state.chat_session.send_message(initial_prompt)
-                st.session_state.chat_history.append({"role": "assistant", "content": response.text})
-                st.rerun() 
-            except Exception:
-                st.error("Error loading poem. Please try again.")
-        else:
-            st.warning("Please paste a poem first!")
+if "chat_session" not in st.session_state or st.session_state.chat_session is None:
+    st.session_state.chat_session = model.start_chat(history=[])
 
-# --- 6. UI: SPLIT-SCREEN WORKSHOP ---
-if st.session_state.workshop_active:
-    col1, col2 = st.columns([1, 1.2], gap="large")
-    
-    with col1:
-        st.subheader("📜 The Text")
-        st.info(st.session_state.poem_text)
-        
-    with col2:
-        st.subheader(f"🗣️ Discussion: {device_focus}")
-        
-        for message in st.session_state.chat_history:
-            with st.chat_message(message["role"]):
-                st.markdown(message["content"])
+# --- 6. CHAT INTERFACE ---
+for message in st.session_state.chat_history:
+    with st.chat_message(message["role"]):
+        st.markdown(message["content"])
 
-        user_input = st.chat_input("Enter your analysis...")
+user_input = st.chat_input(f"Speak to {selected_name}...")
+
+if user_input:
+    st.chat_message("user").markdown(user_input)
+    st.session_state.chat_history.append({"role": "user", "content": user_input})
+    
+    try:
+        response = st.session_state.chat_session.send_message(user_input)
         
-        if user_input:
-            st.chat_message("user").markdown(user_input)
-            st.session_state.chat_history.append({"role": "user", "content": user_input})
+        with st.chat_message("assistant"):
+            st.markdown(response.text)
+        st.session_state.chat_history.append({"role": "assistant", "content": response.text})
+        
+    except ResourceExhausted:
+        st.error("🚨 **Connection Interrupted by the Ministry of Truth.** \n\nThe telescreen network is currently overloaded. Please wait 60 seconds and try again.")
+        if st.session_state.chat_history:
+            st.session_state.chat_history.pop()
             
-            try:
-                response = st.session_state.chat_session.send_message(user_input)
-                with st.chat_message("assistant"):
-                    st.markdown(response.text)
-                st.session_state.chat_history.append({"role": "assistant", "content": response.text})
-                
-            except ResourceExhausted:
-                st.error("🚨 **Network Overload.** The College Board servers are busy. Please wait 60 seconds and try again.")
-                if st.session_state.chat_history:
-                    st.session_state.chat_history.pop()
-                    
-            except ValueError:
-                st.error("🚨 **Content Filtered.** The AI's safety filters blocked this response. Try rephrasing your analysis.")
-                if st.session_state.chat_history:
-                    st.session_state.chat_history.pop()
-                    
-            except Exception as e:
-                st.error("An unexpected error occurred. Please refresh the page and try again.")
-                if st.session_state.chat_history:
-                    st.session_state.chat_history.pop()
+    except ValueError:
+        st.error("🚨 **Thought Police Intervention.** \n\nThe AI's safety filters blocked this response due to the dark themes of 1984. Please try rephrasing your question to be less explicit.")
+        if st.session_state.chat_history:
+            st.session_state.chat_history.pop()
+            
+    except Exception as e:
+        st.error("An unexpected error occurred. Please refresh the page and try again.")
+        if st.session_state.chat_history:
+            st.session_state.chat_history.pop()
