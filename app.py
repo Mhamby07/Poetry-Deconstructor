@@ -48,7 +48,40 @@ with st.sidebar:
         st.session_state.clear()
         st.rerun()
 
-# --- 3. THE "PROFESSOR" SYSTEM PROMPT ---
+# --- 3. HELPER FUNCTIONS ---
+def generate_ap_poetry_prompt(poem_title: str, poem_author: str, poem_text: str) -> str:
+    """Generates an AP Literature Style Question 1 essay prompt based on a poem."""
+    prompt_model = genai.GenerativeModel(
+        model_name='gemini-2.5-flash',
+        generation_config=genai.types.GenerationConfig(temperature=0.4) 
+    )
+    
+    ai_prompt = f"""
+    You are an expert AP English Literature and Composition exam writer. 
+    Read the following poem:
+    
+    Title: {poem_title}
+    Author: {poem_author}
+    Text: 
+    {poem_text}
+    
+    Write a Question 1 (Poetry Analysis) Free Response Question essay prompt for this poem. 
+    
+    RULES:
+    1. It must follow the strict formatting and rigor of official AP exams. 
+    2. Use the standard formula: "Read the following poem carefully. Then, in a well-written essay, analyze how the poet uses literary elements and techniques to convey [insert the specific complex theme, relationship, or attitude found in the poem]."
+    3. Do not provide any commentary, outlines, or answers. 
+    4. Provide ONLY the text of the prompt itself.
+    """
+    
+    try:
+        response = prompt_model.generate_content(ai_prompt)
+        return response.text
+    except Exception as e:
+        return "⚠️ Could not generate the prompt at this time. Please try again."
+
+
+# --- 4. THE "PROFESSOR" SYSTEM PROMPT ---
 ap_professor_prompt = f"""
 You are a distinguished, veteran AP English Literature Exam Reader and a passionate literature professor. 
 The student has selected the workshop mode: '{ap_mode}' and is focusing on the literary device: '{device_focus}'.
@@ -67,11 +100,15 @@ model = genai.GenerativeModel(
     generation_config=generation_config
 )
 
-# --- 4. SESSION MANAGEMENT ---
+# --- 5. SESSION MANAGEMENT ---
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
 if "poem_text" not in st.session_state:
     st.session_state.poem_text = ""
+if "poem_title" not in st.session_state:
+    st.session_state.poem_title = ""
+if "poem_author" not in st.session_state:
+    st.session_state.poem_author = ""
 if "workshop_active" not in st.session_state:
     st.session_state.workshop_active = False
 
@@ -91,15 +128,23 @@ if "current_mode" not in st.session_state or st.session_state.current_mode != ap
 if "chat_session" not in st.session_state:
     st.session_state.chat_session = model.start_chat(history=[])
 
-# --- 5. UI: POEM INPUT SCREEN ---
+# --- 6. UI: POEM INPUT SCREEN ---
 if not st.session_state.workshop_active:
     st.title("🏛️ The AP Literature Poetry Workshop")
     st.write("Welcome, scholar. Paste your text below to begin our explication.")
     
+    col_a, col_b = st.columns(2)
+    with col_a:
+        poem_title = st.text_input("Poem Title (Optional):")
+    with col_b:
+        poem_author = st.text_input("Poet (Optional):")
+        
     raw_poem = st.text_area("Paste the poem here:", height=300)
     
     if st.button("Begin Analysis"):
         if raw_poem.strip():
+            st.session_state.poem_title = poem_title.strip() if poem_title else "Untitled"
+            st.session_state.poem_author = poem_author.strip() if poem_author else "Unknown"
             st.session_state.poem_text = raw_poem
             st.session_state.workshop_active = True
             
@@ -113,14 +158,34 @@ if not st.session_state.workshop_active:
         else:
             st.warning("Please paste a poem first!")
 
-# --- 6. UI: SPLIT-SCREEN WORKSHOP ---
+# --- 7. UI: SPLIT-SCREEN WORKSHOP ---
 if st.session_state.workshop_active:
     col1, col2 = st.columns([1, 1.2], gap="large")
     
+    # LEFT COLUMN: THE POEM & AP PROMPT GENERATOR
     with col1:
         st.subheader("📜 The Text")
+        if st.session_state.poem_title != "Untitled" or st.session_state.poem_author != "Unknown":
+            st.markdown(f"**{st.session_state.poem_title}** by {st.session_state.poem_author}")
+            
         st.info(st.session_state.poem_text)
         
+        # New AP Prompt Section
+        st.markdown("---")
+        st.subheader("📝 Practice Essay")
+        st.write("Ready to write? Generate an official AP-style prompt based on the complex themes of this poem.")
+        
+        if st.button("Generate AP Literature Essay Prompt"):
+            with st.spinner("Analyzing themes and writing exam prompt..."):
+                ap_prompt = generate_ap_poetry_prompt(
+                    poem_title=st.session_state.poem_title, 
+                    poem_author=st.session_state.poem_author, 
+                    poem_text=st.session_state.poem_text
+                )
+                st.success("**Free Response Question 1: Poetry Analysis**")
+                st.write(ap_prompt)
+        
+    # RIGHT COLUMN: THE CHAT
     with col2:
         st.subheader(f"🗣️ Discussion: {device_focus}")
         
