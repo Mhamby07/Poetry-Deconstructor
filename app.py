@@ -127,10 +127,10 @@ model = genai.GenerativeModel(
     safety_settings=chat_safety_settings
 )
 
-# Set up the professor persona using chat history to ensure older library compatibility
+# FIXED: Set up the professor persona using chat history with the correct Google API keys ("parts" instead of "content")
 base_history = [
-    {"role": "user", "content": ap_professor_prompt},
-    {"role": "model", "content": "Understood. I will act as the AP Literature Professor and follow these rules strictly throughout our session."}
+    {"role": "user", "parts": [ap_professor_prompt]},
+    {"role": "model", "parts": ["Understood. I will act as the AP Literature Professor and follow these rules strictly throughout our session."]}
 ]
 
 # --- 5. SESSION MANAGEMENT ---
