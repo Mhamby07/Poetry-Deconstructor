@@ -95,7 +95,8 @@ def generate_ap_poetry_prompt(poem_title: str, poem_author: str, poem_text: str)
 
 
 # --- 4. THE "PROFESSOR" SYSTEM PROMPT ---
-ap_professor_prompt = f"""
+ap_professor_prompt = f
+"""
 You are a distinguished, veteran AP English Literature Exam Reader and a passionate literature professor. 
 The student has selected the workshop mode: '{ap_mode}' and is focusing on the literary device: '{device_focus}'.
 
