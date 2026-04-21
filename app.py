@@ -63,8 +63,9 @@ def generate_ap_poetry_prompt(poem_title: str, poem_author: str, poem_text: str)
         HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
     }
     
+    # SWITCHED TO 1.5-FLASH FOR HIGH QUOTA
     prompt_model = genai.GenerativeModel(
-        model_name='gemini-1.5-flash',
+        model_name='gemini-1.5-flash', 
         generation_config=genai.types.GenerationConfig(temperature=0.4),
         safety_settings=safety_settings
     )
@@ -91,7 +92,6 @@ def generate_ap_poetry_prompt(poem_title: str, poem_author: str, poem_text: str)
         response = prompt_model.generate_content(ai_prompt)
         return response.text
     except Exception as e:
-        # Now we will actually see what the Google API is complaining about!
         return f"⚠️ API Error Details: {str(e)}"
 
 
@@ -108,7 +108,7 @@ CRITICAL RULES:
 5. THE 4-ATTEMPT RULE: You must monitor the student's progress. If the student makes 4 unsuccessful, incorrect, or highly confused attempts to answer the SAME question or analyze the same section, you MUST stop questioning them. You will then provide the correct analysis/answer yourself, explain clearly how you arrived at that conclusion using the text, and then seamlessly ask a new question to move the workshop forward so they do not remain stuck.
 """
 
-# Apply the same safety settings to the main chat model just in case!
+# Apply the same safety settings to the main chat model
 chat_safety_settings = {
     HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE,
     HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE,
@@ -116,9 +116,10 @@ chat_safety_settings = {
     HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
 }
 
+# SWITCHED TO 1.5-FLASH FOR HIGH QUOTA
 generation_config = genai.types.GenerationConfig(temperature=0.3)
 model = genai.GenerativeModel(
-    model_name='gemini-2.5-flash',
+    model_name='gemini-1.5-flash',
     system_instruction=ap_professor_prompt,
     generation_config=generation_config,
     safety_settings=chat_safety_settings
