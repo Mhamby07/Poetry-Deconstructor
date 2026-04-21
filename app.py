@@ -64,7 +64,7 @@ def generate_ap_poetry_prompt(poem_title: str, poem_author: str, poem_text: str)
     }
     
     prompt_model = genai.GenerativeModel(
-        model_name='gemini-2.5-flash-lite', 
+        model_name='gemini-1.5-flash', 
         generation_config=genai.types.GenerationConfig(temperature=0.4),
         safety_settings=safety_settings
     )
@@ -119,7 +119,7 @@ chat_safety_settings = {
 
 generation_config = genai.types.GenerationConfig(temperature=0.3)
 model = genai.GenerativeModel(
-    model_name='gemini-2.5-flash-lite',
+    model_name='gemini-1.5-flash',
     system_instruction=ap_professor_prompt,
     generation_config=generation_config,
     safety_settings=chat_safety_settings
