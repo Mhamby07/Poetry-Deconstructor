@@ -63,9 +63,8 @@ def generate_ap_poetry_prompt(poem_title: str, poem_author: str, poem_text: str)
         HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
     }
     
-    # Switched to the universally compatible gemini-pro
     prompt_model = genai.GenerativeModel(
-        model_name='gemini-pro', 
+        model_name='gemini-2.5-flash-lite', 
         generation_config=genai.types.GenerationConfig(temperature=0.4),
         safety_settings=safety_settings
     )
@@ -119,19 +118,12 @@ chat_safety_settings = {
 }
 
 generation_config = genai.types.GenerationConfig(temperature=0.3)
-
-# Switched to universally compatible gemini-pro and removed system_instruction kwarg
 model = genai.GenerativeModel(
-    model_name='gemini-pro',
+    model_name='gemini-2.5-flash-lite',
+    system_instruction=ap_professor_prompt,
     generation_config=generation_config,
     safety_settings=chat_safety_settings
 )
-
-# FIXED: Set up the professor persona using chat history with the correct Google API keys ("parts" instead of "content")
-base_history = [
-    {"role": "user", "parts": [ap_professor_prompt]},
-    {"role": "model", "parts": ["Understood. I will act as the AP Literature Professor and follow these rules strictly throughout our session."]}
-]
 
 # --- 5. SESSION MANAGEMENT ---
 if "chat_history" not in st.session_state:
@@ -152,7 +144,7 @@ if "current_mode" not in st.session_state or st.session_state.current_mode != ap
     st.session_state.current_mode = ap_mode
     st.session_state.current_device = device_focus
     if st.session_state.workshop_active:
-        st.session_state.chat_session = model.start_chat(history=base_history.copy())
+        st.session_state.chat_session = model.start_chat(history=[])
         try:
             prompt = f"We are now shifting our focus to {ap_mode} with a specific lens on {device_focus}. Give me a brief welcoming thought about why analyzing {device_focus} is crucial for understanding this poem's deeper meaning, and ask your first specific question based on the first appropriate section of the poem."
             response = st.session_state.chat_session.send_message(prompt)
@@ -161,7 +153,7 @@ if "current_mode" not in st.session_state or st.session_state.current_mode != ap
             pass
 
 if "chat_session" not in st.session_state:
-    st.session_state.chat_session = model.start_chat(history=base_history.copy())
+    st.session_state.chat_session = model.start_chat(history=[])
 
 # --- 6. UI: POEM INPUT SCREEN ---
 if not st.session_state.workshop_active:
@@ -192,8 +184,8 @@ if not st.session_state.workshop_active:
             
             st.session_state.workshop_active = True
             
-            # --- RATE LIMIT PROTECTION SPEED BUMP ---
-            time.sleep(4) 
+            # --- Added a 3-second delay to prevent hitting the free-tier rate limit ---
+            time.sleep(3)
             
             try:
                 initial_prompt = f"Here is the poem we are analyzing:\n\n{raw_poem}\n\nPlease welcome the student. Focus on {device_focus} in the context of {ap_mode}. Identify the first relevant section of the poem (respecting the '{ap_mode}' pacing rules) and ask a high-level AP question about it to begin."
@@ -201,7 +193,7 @@ if not st.session_state.workshop_active:
                 st.session_state.chat_history.append({"role": "assistant", "content": response.text})
                 st.rerun() 
             except Exception as e:
-                st.error(f"Error starting chat: {str(e)}")
+                st.error("Error loading poem. Please wait 60 seconds and try again.")
         else:
             st.warning("Please paste a poem first!")
 
@@ -224,9 +216,8 @@ if st.session_state.workshop_active:
         st.subheader(f"🗣️ Discussion: {device_focus}")
         
         for message in st.session_state.chat_history:
-            if message["role"] != "user" or (message["role"] == "user" and "You are a distinguished, veteran AP English Literature Exam Reader" not in message["content"]):
-                with st.chat_message(message["role"]):
-                    st.markdown(message["content"])
+            with st.chat_message(message["role"]):
+                st.markdown(message["content"])
 
         user_input = st.chat_input("Enter your analysis...")
         
@@ -251,6 +242,6 @@ if st.session_state.workshop_active:
                     st.session_state.chat_history.pop()
                     
             except Exception as e:
-                st.error(f"An unexpected error occurred: {str(e)}")
+                st.error("An unexpected error occurred. Please refresh the page and try again.")
                 if st.session_state.chat_history:
                     st.session_state.chat_history.pop()
