@@ -64,7 +64,7 @@ def generate_ap_poetry_prompt(poem_title: str, poem_author: str, poem_text: str)
     }
     
     prompt_model = genai.GenerativeModel(
-        model_name='gemini-2.5-flash',
+        model_name='gemini-1.5-flash',
         generation_config=genai.types.GenerationConfig(temperature=0.4),
         safety_settings=safety_settings
     )
