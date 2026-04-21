@@ -16,9 +16,7 @@ with st.sidebar:
     ap_mode = st.selectbox(
         "Workshop Mode:",
         [
-            "Line-by-Line Explication",
-            "Chunk Analysis (2-4 Lines)",
-            "Logical Chunking (Stanzas/Thematic Units)",
+            "Logical Chunking (Stanzas/Thematic Units)", # NEW: Intelligent chunking
             "Row A: Thesis Workshop",
             "Row B: Evidence & Commentary",
             "Row C: Complexity & Shifts"
@@ -93,6 +91,7 @@ def generate_ap_poetry_prompt(poem_title: str, poem_author: str, poem_text: str)
     except Exception as e:
         return f"⚠️ API Error Details: {str(e)}"
 
+
 # --- 4. THE "PROFESSOR" SYSTEM PROMPT ---
 ap_professor_prompt = f"""
 You are a distinguished, veteran AP English Literature Exam Reader and a passionate literature professor. 
@@ -100,14 +99,11 @@ The student has selected the workshop mode: '{ap_mode}' and is focusing on the l
 
 CRITICAL RULES:
 1. NEVER do the work for the student initially. Do not write the thesis or give away the theme right away.
-2. PACING & CHUNKING: Strictly adhere to the chosen '{ap_mode}'. 
-   - If the mode is "Line-by-Line Explication", analyze exactly one line at a time.
-   - If the mode is "Chunk Analysis (2-4 Lines)", group the text and analyze exactly 2 to 4 lines at a time.
-   - If the mode is "Logical Chunking (Stanzas/Thematic Units)", group the text by complete stanzas, full syntactic sentences, or clear thematic shifts (usually 4 to 10 lines at a time).
-3. Focus heavily on '{device_focus}'. If they selected a specific device, guide them to locate an example of it within the current section you are discussing.
+2. INTELLIGENT CHUNKING: When guiding the student through the text, divide the poem into larger, logical, and highly relevant chunks. Group the text by complete stanzas, full syntactic sentences, or clear thematic shifts (usually 4 to 10 lines at a time). DO NOT analyze line-by-line or in rigid 2-3 line segments, as this creates a tedious and disjointed experience. 
+3. Focus heavily on '{device_focus}'. If they selected a specific device, guide them to locate an example of it within the current chunk you are discussing.
 4. THE GOLDEN RULE: Do not let the student just identify the device. You must aggressively push them to explain HOW the '{device_focus}' functions to create the Meaning of the Work as a Whole (MOWAW). 
 5. Keep your responses concise (1-2 short paragraphs max) ending with a highly targeted analytical question about the specific chunk you are currently on.
-6. THE 4-ATTEMPT RULE: You must monitor the student's progress. If the student makes 4 unsuccessful, incorrect, or highly confused attempts to answer the SAME question or analyze the same chunk, you MUST stop questioning them. You will then provide the correct analysis/answer yourself, explain clearly how you arrived at that conclusion using the text, and then seamlessly ask a new question about the NEXT logical section in the poem so they do not remain stuck.
+6. THE 4-ATTEMPT RULE: You must monitor the student's progress. If the student makes 4 unsuccessful, incorrect, or highly confused attempts to answer the SAME question or analyze the same chunk, you MUST stop questioning them. You will then provide the correct analysis/answer yourself, explain clearly how you arrived at that conclusion using the text, and then seamlessly ask a new question about the NEXT logical chunk in the poem so they do not remain stuck.
 """
 
 chat_safety_settings = {
@@ -146,7 +142,7 @@ if "current_mode" not in st.session_state or st.session_state.current_mode != ap
     if st.session_state.workshop_active:
         st.session_state.chat_session = model.start_chat(history=[])
         try:
-            prompt = f"We are now shifting our focus to {ap_mode} with a specific lens on {device_focus}. Give me a brief welcoming thought about why analyzing {device_focus} is crucial for understanding this poem's deeper meaning, and ask your first specific question based on the first appropriate section of the poem."
+            prompt = f"We are now shifting our focus to {ap_mode} with a specific lens on {device_focus}. Give me a brief welcoming thought about why analyzing {device_focus} is crucial for understanding this poem's deeper meaning, and ask your first specific question based on the first logical chunk/stanza of the poem."
             response = st.session_state.chat_session.send_message(prompt)
             st.session_state.chat_history.append({"role": "assistant", "content": response.text})
         except Exception:
@@ -184,16 +180,15 @@ if not st.session_state.workshop_active:
             
             st.session_state.workshop_active = True
             
-            # --- Added a 3-second delay to prevent hitting the free-tier rate limit ---
-            time.sleep(3)
+            time.sleep(2)
             
             try:
-                initial_prompt = f"Here is the poem we are analyzing:\n\n{raw_poem}\n\nPlease welcome the student. Focus on {device_focus} in the context of {ap_mode}. Identify the first relevant section of the poem (respecting the '{ap_mode}' pacing rules) and ask a high-level AP question about it to begin."
+                initial_prompt = f"Here is the poem we are analyzing:\n\n{raw_poem}\n\nPlease welcome the student. Focus on {device_focus} in the context of {ap_mode}. Identify the first logical chunk of the poem (a stanza or thematic unit) and ask a high-level AP question about it to begin."
                 response = st.session_state.chat_session.send_message(initial_prompt)
                 st.session_state.chat_history.append({"role": "assistant", "content": response.text})
                 st.rerun() 
-            except Exception as e:
-                st.error("Error loading poem. Please wait 60 seconds and try again.")
+            except Exception:
+                st.error("Error loading poem. Please try again.")
         else:
             st.warning("Please paste a poem first!")
 
