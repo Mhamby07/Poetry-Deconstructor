@@ -63,8 +63,9 @@ def generate_ap_poetry_prompt(poem_title: str, poem_author: str, poem_text: str)
         HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
     }
     
+    # Switched to the universally compatible gemini-pro
     prompt_model = genai.GenerativeModel(
-        model_name='gemini-2.0-flash', 
+        model_name='gemini-pro', 
         generation_config=genai.types.GenerationConfig(temperature=0.4),
         safety_settings=safety_settings
     )
@@ -118,12 +119,19 @@ chat_safety_settings = {
 }
 
 generation_config = genai.types.GenerationConfig(temperature=0.3)
+
+# Switched to universally compatible gemini-pro and removed system_instruction kwarg
 model = genai.GenerativeModel(
-    model_name='gemini-2.0-flash',
-    system_instruction=ap_professor_prompt,
+    model_name='gemini-pro',
     generation_config=generation_config,
     safety_settings=chat_safety_settings
 )
+
+# Set up the professor persona using chat history to ensure older library compatibility
+base_history = [
+    {"role": "user", "content": ap_professor_prompt},
+    {"role": "model", "content": "Understood. I will act as the AP Literature Professor and follow these rules strictly throughout our session."}
+]
 
 # --- 5. SESSION MANAGEMENT ---
 if "chat_history" not in st.session_state:
@@ -144,7 +152,7 @@ if "current_mode" not in st.session_state or st.session_state.current_mode != ap
     st.session_state.current_mode = ap_mode
     st.session_state.current_device = device_focus
     if st.session_state.workshop_active:
-        st.session_state.chat_session = model.start_chat(history=[])
+        st.session_state.chat_session = model.start_chat(history=base_history.copy())
         try:
             prompt = f"We are now shifting our focus to {ap_mode} with a specific lens on {device_focus}. Give me a brief welcoming thought about why analyzing {device_focus} is crucial for understanding this poem's deeper meaning, and ask your first specific question based on the first appropriate section of the poem."
             response = st.session_state.chat_session.send_message(prompt)
@@ -153,7 +161,7 @@ if "current_mode" not in st.session_state or st.session_state.current_mode != ap
             pass
 
 if "chat_session" not in st.session_state:
-    st.session_state.chat_session = model.start_chat(history=[])
+    st.session_state.chat_session = model.start_chat(history=base_history.copy())
 
 # --- 6. UI: POEM INPUT SCREEN ---
 if not st.session_state.workshop_active:
@@ -185,7 +193,6 @@ if not st.session_state.workshop_active:
             st.session_state.workshop_active = True
             
             # --- RATE LIMIT PROTECTION SPEED BUMP ---
-            # Pausing for 4 seconds to ensure we don't trigger Google's free tier spam filter
             time.sleep(4) 
             
             try:
@@ -217,8 +224,9 @@ if st.session_state.workshop_active:
         st.subheader(f"🗣️ Discussion: {device_focus}")
         
         for message in st.session_state.chat_history:
-            with st.chat_message(message["role"]):
-                st.markdown(message["content"])
+            if message["role"] != "user" or (message["role"] == "user" and "You are a distinguished, veteran AP English Literature Exam Reader" not in message["content"]):
+                with st.chat_message(message["role"]):
+                    st.markdown(message["content"])
 
         user_input = st.chat_input("Enter your analysis...")
         
