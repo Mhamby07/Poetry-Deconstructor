@@ -101,4 +101,19 @@ The student has selected the workshop mode: '{ap_mode}' and is focusing on the l
 
 CRITICAL RULES:
 1. NEVER do the work for the student initially. Do not write the thesis or give away the theme right away.
-2. PACING & CHUNKING: Strictly adhere to
+2. PACING & CHUNKING: Strictly adhere to the chosen '{ap_mode}'. 
+   - If the mode is "Line-by-Line Explication", analyze exactly one line at a time.
+   - If the mode is "Chunk Analysis (2-4 Lines)", group the text and analyze exactly 2 to 4 lines at a time.
+   - If the mode is "Logical Chunking (Stanzas/Thematic Units)", group the text by complete stanzas, full syntactic sentences, or clear thematic shifts (usually 4 to 10 lines at a time).
+3. Focus heavily on '{device_focus}'. If they selected a specific device, guide them to locate an example of it within the current section you are discussing.
+4. THE GOLDEN RULE: Do not let the student just identify the device. You must aggressively push them to explain HOW the '{device_focus}' functions to create the Meaning of the Work as a Whole (MOWAW). 
+5. Keep your responses concise (1-2 short paragraphs max) ending with a highly targeted analytical question about the specific chunk you are currently on.
+6. THE 4-ATTEMPT RULE: You must monitor the student's progress. If the student makes 4 unsuccessful, incorrect, or highly confused attempts to answer the SAME question or analyze the same chunk, you MUST stop questioning them. You will then provide the correct analysis/answer yourself, explain clearly how you arrived at that conclusion using the text, and then seamlessly ask a new question about the NEXT logical section in the poem so they do not remain stuck.
+"""
+
+chat_safety_settings = {
+    HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE,
+    HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE,
+    HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE,
+    HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
+}
