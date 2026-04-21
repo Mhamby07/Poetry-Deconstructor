@@ -93,10 +93,8 @@ def generate_ap_poetry_prompt(poem_title: str, poem_author: str, poem_text: str)
     except Exception as e:
         return f"⚠️ API Error Details: {str(e)}"
 
-
 # --- 4. THE "PROFESSOR" SYSTEM PROMPT ---
-ap_professor_prompt = f
-"""
+ap_professor_prompt = f"""
 You are a distinguished, veteran AP English Literature Exam Reader and a passionate literature professor. 
 The student has selected the workshop mode: '{ap_mode}' and is focusing on the literary device: '{device_focus}'.
 
@@ -118,3 +116,80 @@ chat_safety_settings = {
     HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE,
     HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
 }
+
+generation_config = genai.types.GenerationConfig(temperature=0.3)
+model = genai.GenerativeModel(
+    model_name='gemini-2.5-flash-lite',
+    system_instruction=ap_professor_prompt,
+    generation_config=generation_config,
+    safety_settings=chat_safety_settings
+)
+
+# --- 5. SESSION MANAGEMENT ---
+if "chat_history" not in st.session_state:
+    st.session_state.chat_history = []
+if "poem_text" not in st.session_state:
+    st.session_state.poem_text = ""
+if "poem_title" not in st.session_state:
+    st.session_state.poem_title = ""
+if "poem_author" not in st.session_state:
+    st.session_state.poem_author = ""
+if "generated_ap_prompt" not in st.session_state:
+    st.session_state.generated_ap_prompt = ""
+if "workshop_active" not in st.session_state:
+    st.session_state.workshop_active = False
+
+# Ensure chat session matches the selected mode AND device
+if "current_mode" not in st.session_state or st.session_state.current_mode != ap_mode or "current_device" not in st.session_state or st.session_state.current_device != device_focus:
+    st.session_state.current_mode = ap_mode
+    st.session_state.current_device = device_focus
+    if st.session_state.workshop_active:
+        st.session_state.chat_session = model.start_chat(history=[])
+        try:
+            prompt = f"We are now shifting our focus to {ap_mode} with a specific lens on {device_focus}. Give me a brief welcoming thought about why analyzing {device_focus} is crucial for understanding this poem's deeper meaning, and ask your first specific question based on the first appropriate section of the poem."
+            response = st.session_state.chat_session.send_message(prompt)
+            st.session_state.chat_history.append({"role": "assistant", "content": response.text})
+        except Exception:
+            pass
+
+if "chat_session" not in st.session_state:
+    st.session_state.chat_session = model.start_chat(history=[])
+
+# --- 6. UI: POEM INPUT SCREEN ---
+if not st.session_state.workshop_active:
+    st.title("🏛️ The AP Literature Poetry Workshop")
+    st.write("Welcome, scholar. Paste your text below to begin our explication.")
+    
+    col_a, col_b = st.columns(2)
+    with col_a:
+        poem_title = st.text_input("Poem Title (Optional):")
+    with col_b:
+        poem_author = st.text_input("Poet (Optional):")
+        
+    raw_poem = st.text_area("Paste the poem here:", height=300)
+    
+    if st.button("Begin Analysis"):
+        if raw_poem.strip():
+            st.session_state.poem_title = poem_title.strip() if poem_title else "Untitled"
+            st.session_state.poem_author = poem_author.strip() if poem_author else "Unknown"
+            st.session_state.poem_text = raw_poem
+            
+            with st.spinner("Analyzing poem themes and generating official AP FRQ prompt..."):
+                generated_prompt = generate_ap_poetry_prompt(
+                    poem_title=st.session_state.poem_title, 
+                    poem_author=st.session_state.poem_author, 
+                    poem_text=st.session_state.poem_text
+                )
+                st.session_state.generated_ap_prompt = generated_prompt
+            
+            st.session_state.workshop_active = True
+            
+            time.sleep(2)
+            
+            try:
+                initial_prompt = f"Here is the poem we are analyzing:\n\n{raw_poem}\n\nPlease welcome the student. Focus on {device_focus} in the context of {ap_mode}. Identify the first relevant section of the poem (respecting the '{ap_mode}' pacing rules) and ask a high-level AP question about it to begin."
+                response = st.session_state.chat_session.send_message(initial_prompt)
+                st.session_state.chat_history.append({"role": "assistant", "content": response.text})
+                st.rerun() 
+            except Exception:
+                st.error("Error loading poem. Please try again
