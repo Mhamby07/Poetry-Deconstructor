@@ -1,6 +1,8 @@
 import streamlit as st
 import google.generativeai as genai
 from google.api_core.exceptions import ResourceExhausted
+import time
+from google.generativeai.types import HarmCategory, HarmBlockThreshold
 
 # --- 1. SETUP & CONFIGURATION ---
 st.set_page_config(page_title="AP Lit Poetry Workshop", page_icon="🏛️", layout="wide")
@@ -15,7 +17,7 @@ with st.sidebar:
         "Workshop Mode:",
         [
             "Line-by-Line Explication",
-            "Chunk Analysis (2-3 Lines)",  # NEW ADDITION HERE
+            "Chunk Analysis (2-3 Lines)",
             "Row A: Thesis Workshop",
             "Row B: Evidence & Commentary",
             "Row C: Complexity & Shifts"
@@ -52,9 +54,19 @@ with st.sidebar:
 # --- 3. HELPER FUNCTIONS ---
 def generate_ap_poetry_prompt(poem_title: str, poem_author: str, poem_text: str) -> str:
     """Generates an AP Literature Style Question 1 essay prompt based on a poem."""
+    
+    # Turn off safety filters so classic poems (death, war, etc.) don't get blocked
+    safety_settings = {
+        HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE,
+        HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE,
+        HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE,
+        HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
+    }
+    
     prompt_model = genai.GenerativeModel(
         model_name='gemini-2.5-flash',
-        generation_config=genai.types.GenerationConfig(temperature=0.4) 
+        generation_config=genai.types.GenerationConfig(temperature=0.4),
+        safety_settings=safety_settings
     )
     
     ai_prompt = f"""
@@ -79,7 +91,8 @@ def generate_ap_poetry_prompt(poem_title: str, poem_author: str, poem_text: str)
         response = prompt_model.generate_content(ai_prompt)
         return response.text
     except Exception as e:
-        return "⚠️ Could not generate the prompt at this time. Please try again."
+        # Now we will actually see what the Google API is complaining about!
+        return f"⚠️ API Error Details: {str(e)}"
 
 
 # --- 4. THE "PROFESSOR" SYSTEM PROMPT ---
@@ -95,11 +108,20 @@ CRITICAL RULES:
 5. THE 4-ATTEMPT RULE: You must monitor the student's progress. If the student makes 4 unsuccessful, incorrect, or highly confused attempts to answer the SAME question or analyze the same section, you MUST stop questioning them. You will then provide the correct analysis/answer yourself, explain clearly how you arrived at that conclusion using the text, and then seamlessly ask a new question to move the workshop forward so they do not remain stuck.
 """
 
+# Apply the same safety settings to the main chat model just in case!
+chat_safety_settings = {
+    HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE,
+    HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE,
+    HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE,
+    HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
+}
+
 generation_config = genai.types.GenerationConfig(temperature=0.3)
 model = genai.GenerativeModel(
     model_name='gemini-2.5-flash',
     system_instruction=ap_professor_prompt,
-    generation_config=generation_config
+    generation_config=generation_config,
+    safety_settings=chat_safety_settings
 )
 
 # --- 5. SESSION MANAGEMENT ---
@@ -161,6 +183,9 @@ if not st.session_state.workshop_active:
                 st.session_state.generated_ap_prompt = generated_prompt
             
             st.session_state.workshop_active = True
+            
+            # ADD A SPEED BUMP HERE to prevent API traffic jams
+            time.sleep(2)
             
             try:
                 initial_prompt = f"Here is the poem we are analyzing:\n\n{raw_poem}\n\nPlease welcome the student. Focus on {device_focus} in the context of {ap_mode}. Ask a high-level AP question to begin."
