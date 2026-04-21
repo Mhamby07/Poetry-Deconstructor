@@ -63,9 +63,9 @@ def generate_ap_poetry_prompt(poem_title: str, poem_author: str, poem_text: str)
         HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
     }
     
-    # SWITCHED TO 1.5-FLASH FOR HIGH QUOTA
+    # SWITCHED TO 2.5-FLASH-LITE FOR HIGH FREE QUOTA (1,000 requests/day)
     prompt_model = genai.GenerativeModel(
-        model_name='gemini-1.5-flash', 
+        model_name='gemini-2.5-flash-lite', 
         generation_config=genai.types.GenerationConfig(temperature=0.4),
         safety_settings=safety_settings
     )
@@ -116,10 +116,10 @@ chat_safety_settings = {
     HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
 }
 
-# SWITCHED TO 1.5-FLASH FOR HIGH QUOTA
+# SWITCHED TO 2.5-FLASH-LITE FOR HIGH FREE QUOTA (1,000 requests/day)
 generation_config = genai.types.GenerationConfig(temperature=0.3)
 model = genai.GenerativeModel(
-    model_name='gemini-1.5-flash',
+    model_name='gemini-2.5-flash-lite',
     system_instruction=ap_professor_prompt,
     generation_config=generation_config,
     safety_settings=chat_safety_settings
