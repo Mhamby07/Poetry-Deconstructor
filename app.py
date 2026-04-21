@@ -64,7 +64,7 @@ def generate_ap_poetry_prompt(poem_title: str, poem_author: str, poem_text: str)
     }
     
     prompt_model = genai.GenerativeModel(
-        model_name='gemini-1.5-flash', 
+        model_name='gemini-2.0-flash', 
         generation_config=genai.types.GenerationConfig(temperature=0.4),
         safety_settings=safety_settings
     )
@@ -119,7 +119,7 @@ chat_safety_settings = {
 
 generation_config = genai.types.GenerationConfig(temperature=0.3)
 model = genai.GenerativeModel(
-    model_name='gemini-1.5-flash',
+    model_name='gemini-2.0-flash',
     system_instruction=ap_professor_prompt,
     generation_config=generation_config,
     safety_settings=chat_safety_settings
@@ -184,15 +184,17 @@ if not st.session_state.workshop_active:
             
             st.session_state.workshop_active = True
             
-            time.sleep(2)
+            # --- RATE LIMIT PROTECTION SPEED BUMP ---
+            # Pausing for 4 seconds to ensure we don't trigger Google's free tier spam filter
+            time.sleep(4) 
             
             try:
                 initial_prompt = f"Here is the poem we are analyzing:\n\n{raw_poem}\n\nPlease welcome the student. Focus on {device_focus} in the context of {ap_mode}. Identify the first relevant section of the poem (respecting the '{ap_mode}' pacing rules) and ask a high-level AP question about it to begin."
                 response = st.session_state.chat_session.send_message(initial_prompt)
                 st.session_state.chat_history.append({"role": "assistant", "content": response.text})
                 st.rerun() 
-            except Exception:
-                st.error("Error loading poem. Please try again.")
+            except Exception as e:
+                st.error(f"Error starting chat: {str(e)}")
         else:
             st.warning("Please paste a poem first!")
 
@@ -241,6 +243,6 @@ if st.session_state.workshop_active:
                     st.session_state.chat_history.pop()
                     
             except Exception as e:
-                st.error("An unexpected error occurred. Please refresh the page and try again.")
+                st.error(f"An unexpected error occurred: {str(e)}")
                 if st.session_state.chat_history:
                     st.session_state.chat_history.pop()
