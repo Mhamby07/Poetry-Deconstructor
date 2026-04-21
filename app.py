@@ -15,6 +15,7 @@ with st.sidebar:
         "Workshop Mode:",
         [
             "Line-by-Line Explication",
+            "Chunk Analysis (2-3 Lines)",  # NEW ADDITION HERE
             "Row A: Thesis Workshop",
             "Row B: Evidence & Commentary",
             "Row C: Complexity & Shifts"
@@ -87,10 +88,11 @@ You are a distinguished, veteran AP English Literature Exam Reader and a passion
 The student has selected the workshop mode: '{ap_mode}' and is focusing on the literary device: '{device_focus}'.
 
 CRITICAL RULES:
-1. NEVER do the work for the student. Do not write the thesis or give away the theme.
+1. NEVER do the work for the student initially. Do not write the thesis or give away the theme right away.
 2. Focus heavily on '{device_focus}'. If they selected a specific device, guide them to locate an example of it in the poem.
 3. THE GOLDEN RULE: Do not let the student just identify the device. You must aggressively push them to explain HOW the '{device_focus}' functions to create the Meaning of the Work as a Whole (MOWAW). 
 4. Keep your responses concise (1-2 short paragraphs max) ending with a highly targeted analytical question.
+5. THE 4-ATTEMPT RULE: You must monitor the student's progress. If the student makes 4 unsuccessful, incorrect, or highly confused attempts to answer the SAME question or analyze the same section, you MUST stop questioning them. You will then provide the correct analysis/answer yourself, explain clearly how you arrived at that conclusion using the text, and then seamlessly ask a new question to move the workshop forward so they do not remain stuck.
 """
 
 generation_config = genai.types.GenerationConfig(temperature=0.3)
@@ -109,6 +111,8 @@ if "poem_title" not in st.session_state:
     st.session_state.poem_title = ""
 if "poem_author" not in st.session_state:
     st.session_state.poem_author = ""
+if "generated_ap_prompt" not in st.session_state:
+    st.session_state.generated_ap_prompt = ""
 if "workshop_active" not in st.session_state:
     st.session_state.workshop_active = False
 
@@ -146,6 +150,16 @@ if not st.session_state.workshop_active:
             st.session_state.poem_title = poem_title.strip() if poem_title else "Untitled"
             st.session_state.poem_author = poem_author.strip() if poem_author else "Unknown"
             st.session_state.poem_text = raw_poem
+            
+            # GENERATE THE AP PROMPT AUTOMATICALLY BEFORE WORKSHOP STARTS
+            with st.spinner("Analyzing poem themes and generating official AP FRQ prompt..."):
+                generated_prompt = generate_ap_poetry_prompt(
+                    poem_title=st.session_state.poem_title, 
+                    poem_author=st.session_state.poem_author, 
+                    poem_text=st.session_state.poem_text
+                )
+                st.session_state.generated_ap_prompt = generated_prompt
+            
             st.session_state.workshop_active = True
             
             try:
@@ -162,28 +176,18 @@ if not st.session_state.workshop_active:
 if st.session_state.workshop_active:
     col1, col2 = st.columns([1, 1.2], gap="large")
     
-    # LEFT COLUMN: THE POEM & AP PROMPT GENERATOR
+    # LEFT COLUMN: THE POEM & AP PROMPT
     with col1:
+        # Display the auto-generated AP Prompt at the very top as the target goal
+        st.subheader("🎯 Your Essay Prompt Goal")
+        st.success(f"**Free Response Question 1: Poetry Analysis**\n\n{st.session_state.generated_ap_prompt}")
+        st.markdown("---")
+        
         st.subheader("📜 The Text")
         if st.session_state.poem_title != "Untitled" or st.session_state.poem_author != "Unknown":
             st.markdown(f"**{st.session_state.poem_title}** by {st.session_state.poem_author}")
             
         st.info(st.session_state.poem_text)
-        
-        # New AP Prompt Section
-        st.markdown("---")
-        st.subheader("📝 Practice Essay")
-        st.write("Ready to write? Generate an official AP-style prompt based on the complex themes of this poem.")
-        
-        if st.button("Generate AP Literature Essay Prompt"):
-            with st.spinner("Analyzing themes and writing exam prompt..."):
-                ap_prompt = generate_ap_poetry_prompt(
-                    poem_title=st.session_state.poem_title, 
-                    poem_author=st.session_state.poem_author, 
-                    poem_text=st.session_state.poem_text
-                )
-                st.success("**Free Response Question 1: Poetry Analysis**")
-                st.write(ap_prompt)
         
     # RIGHT COLUMN: THE CHAT
     with col2:
